@@ -1,0 +1,91 @@
+---
+title: "Practical Machine Learning Project"
+author: "Cara Johnson"
+date: "November 9, 2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+###Data Summary
+There are many devices that collect data on personal activity. Much analysis is dedicated to classifying what activity the user was performing, for example running or walking. The data for this project is from a study that sought to classify the manner in which users performed a paritular exercise. Class A means they performed a dumbbell lift correctly, while Classes B-E represent four different common mistakes. Data was collected from accelerometers placed on the user's body and on their dumbbell.  
+  
+The goal of this project is to take the training data set and build a model to predict the Class. The data for this project come from this source: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har.  
+  
+Load in the data.  
+```{r loadData, cache=TRUE}
+#load data
+training <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"), na.strings=c("NA",""))
+testing <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"), na.strings=c("NA",""))
+#load relevant packages
+library(caret)
+library(rattle)
+library(ggplot2)
+library(randomForest)
+```
+  
+###Implement cross validation   
+Split the training data set so that 70% of the data is used for training and 30% is used for validation.  
+```{r, cache=TRUE}
+# split training set into training1 and validation sets
+set.seed(3456)
+inTrain <- createDataPartition(y=training$classe,p=0.7,list=FALSE)
+training1 <- training[inTrain,]
+validation <- training[-inTrain,]
+```
+  
+###Clean the data    
+Remove variables that have nearly zero variance, variables with NA's, and also the first six variables, which have no relevance to the analysis (x, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, num_window).  
+```{r, cache=TRUE}
+# remove variables with near zero variance
+nzv <- nearZeroVar(training1)
+training1 <- training1[,-nzv]
+
+# remove variables with NA's
+TotalNA <- apply(training1, 2, function(x) {sum(is.na(x))})
+training1 <- training1[, which(TotalNA == 0)]
+
+# remove irrelevant col 1:6
+training1 <- training1[,-c(1:6)]
+```
+
+###Model Selection   
+####Model 1 - Decision Tree
+First, fit a decision tree model and use cross validation to predict the accuracy and the out-of-sample error rate.  
+```{r, cache=TRUE}
+set.seed(3456)
+## model 1 - Decision Tree
+modFit1 <- train(classe~.,data=training1,method="rpart",trControl=trainControl(method="cv"))
+fancyRpartPlot(modFit1$finalModel)
+pred1 <- predict(modFit1,newdata=validation)
+confusionMatrix(pred1,validation$classe)
+```
+Observe that the accuracy is 49.16% and, therefore the predicted out-of-sample error rate (1-accuracy) is 50.84%.  
+```{r, cache=TRUE}
+qplot(pred1,classe,data=validation)
+```  
+  
+A plot of the predicted outcomes vs the actual outcomes further demonstrates the unsuitability of this model. This model will be discarded.  
+  
+####Model 2 - Random Forest
+Next, fit a random forest model to the data. For the trainControl argument, use method=none in order to only fit one model to the entire training set.    
+```{r, cache=TRUE}
+## model 2 - random forest  
+modFit2 <- train(classe~.,data=training1,trControl=trainControl(method="none"), method="parRF")
+pred2 <- predict(modFit2,newdata=validation)
+confusionMatrix(pred2,validation$classe)
+```
+Observe that the accuracy is 99.52% and, therefore the predicted out-of-sample error rate (1-accuracy) is 0.48%.   
+```{r, cache=TRUE}
+qplot(pred2,classe,data=validation)
+```
+  
+A plot of the predicted outcomes vs the actual outcomes demonstrates the high accuracy of this model. The random forest model will be selected.  
+
+###Prediction  
+Use the random forest model to predict the class for the testing data set.  
+```{r, cache=TRUE}
+# predict classe for testing set
+pred2final <- predict(modFit2,newdata=testing)
+pred2final
+```
+
