@@ -16,7 +16,7 @@ training <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pm
 testing <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"), na.strings=c("NA",""))
 #load relevant packages
 library(caret)
-#library(rattle)
+library(rattle)
 library(ggplot2)
 library(randomForest)
 ```
@@ -53,7 +53,7 @@ First, fit a decision tree model and use cross validation to predict the accurac
 set.seed(3456)
 ## model 1 - Decision Tree
 modFit1 <- train(classe~.,data=training1,method="rpart",trControl=trainControl(method="cv"))
-#fancyRpartPlot(modFit1$finalModel)
+fancyRpartPlot(modFit1$finalModel)
 pred1 <- predict(modFit1,newdata=validation)
 confusionMatrix(pred1,validation$classe)
 ```
